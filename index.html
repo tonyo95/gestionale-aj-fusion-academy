@@ -5,23 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AJ Fusion Academy - Gestionale</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #2ecc71; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #27ae60; }
+        h1 { text-align: center; color: #2c3e50; }
+    </style>
 </head>
 <body>
-    <h1>Gestionale AJ Fusion</h1>
+
+    <h1>AJ Fusion Academy</h1>
+    
+    <div class="card">
+        <h3>Nuovo Pagamento</h3>
+        <input type="text" id="nome" placeholder="Nome Allievo">
+        <select id="corso">
+            <option value="Danza">Danza</option>
+            <option value="Musica">Musica</option>
+            <option value="Teatro">Teatro</option>
+        </select>
+        <input type="number" id="importo" placeholder="Importo (€)">
+        <button onclick="salvaDato()">REGISTRA PAGAMENTO</button>
+    </div>
+
     <script>
-        // Inserisci qui i dati che abbiamo preso da Supabase
-        const SUPABASE_URL = 'IL_TUO_URL_DI_SUPABASE';
+        // --- CONFIGURAZIONE SUPABASE ---
+        // Sostituisci questi due valori con quelli del tuo pannello Supabase
+        const SUPABASE_URL = 'IL_TUO_URL_DI_SUPABASE'; 
         const SUPABASE_KEY = 'LA_TUA_CHIAVE_ANON';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Funzione per caricare i dati
-        async function salvaDato(nome, corso, importo) {
+        // --- FUNZIONE SALVATAGGIO ---
+        async function salvaDato() {
+            const nome = document.getElementById('nome').value;
+            const corso = document.getElementById('corso').value;
+            const importo = document.getElementById('importo').value;
+
+            if(!nome || !importo) {
+                alert("Per favore, compila tutti i campi!");
+                return;
+            }
+
             const { data, error } = await _supabase
                 .from('pagamenti')
-                .insert([{ nome: nome, corso: corso, importo: importo }]);
+                .insert([{ nome: nome, corso: corso, importo: parseFloat(importo) }]);
             
-            if (error) console.error(error);
-            else alert("Dato salvato correttamente!");
+            if (error) {
+                console.error(error);
+                alert("Errore nel salvataggio: " + error.message);
+            } else {
+                alert("Pagamento registrato con successo!");
+                document.getElementById('nome').value = '';
+                document.getElementById('importo').value = '';
+            }
         }
     </script>
 </body>
