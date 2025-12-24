@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJ Fusion Academy - Gestionale</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Gestionale AJ Fusion</h1>
+    <script>
+        // Inserisci qui i dati che abbiamo preso da Supabase
+        const SUPABASE_URL = 'IL_TUO_URL_DI_SUPABASE';
+        const SUPABASE_KEY = 'LA_TUA_CHIAVE_ANON';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Funzione per caricare i dati
+        async function salvaDato(nome, corso, importo) {
+            const { data, error } = await _supabase
+                .from('pagamenti')
+                .insert([{ nome: nome, corso: corso, importo: importo }]);
+            
+            if (error) console.error(error);
+            else alert("Dato salvato correttamente!");
+        }
+    </script>
+</body>
+</html>
