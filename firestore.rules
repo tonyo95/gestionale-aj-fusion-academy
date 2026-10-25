@@ -10,10 +10,15 @@ service cloud.firestore {
     function hasProfile() { return signedIn() && exists(userPath()); }
     function me() { return get(userPath()).data; }
     function approved() { return hasProfile() && me().get('status', 'approved') == 'approved'; }
-    function isAdmin() { return approved() && me().role == 'admin'; }
+    function ownerEmail(e) { return e in ['antoniobracciavento@gmail.com', 'ajfusionacademy@gmail.com']; }
+    // Amministratore = solo le due email del titolare (anche se qualcuno modificasse il proprio profilo)
+    function isAdmin() {
+      return approved() && me().role == 'admin'
+        && ownerEmail(request.auth.token.email) && request.auth.token.email_verified == true;
+    }
     function isMaestro() { return me().role == 'maestro'; }
     function isAdminEmail() {
-      return signedIn() && request.auth.token.email in ['antoniobracciavento@gmail.com', 'ajfusionacademy@gmail.com']
+      return signedIn() && ownerEmail(request.auth.token.email)
         && request.auth.token.email_verified == true;
     }
 
@@ -29,6 +34,10 @@ service cloud.firestore {
               && section in ['home', 'corsi', 'iscrizioni', 'ritardi', 'calendario']) ? 'edit' : 'none');
     }
     function canEdit(section) { return approved() && level(section) == 'edit'; }
+    function canView(section) { return approved() && level(section) in ['view', 'edit']; }
+    function seesStudents() {
+      return canView('iscrizioni') || canView('ritardi') || canView('corsi') || canView('home');
+    }
 
     // ── Utenti ──
     match /users/{uid} {
@@ -39,8 +48,9 @@ service cloud.firestore {
                         && request.resource.data.permissions == null)
                     || (signedIn() && request.auth.uid == uid && isAdminEmail()
                         && request.resource.data.role == 'admin')
-                    || isAdmin();
-      allow update: if isAdmin()
+                    || (isAdmin() && request.resource.data.role != 'admin');
+      // Nessuno, nemmeno per errore, può diventare amministratore se non è il titolare
+      allow update: if (isAdmin() && (request.resource.data.role != 'admin' || ownerEmail(request.resource.data.email)))
                     || (signedIn() && request.auth.uid == uid
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(['last_login_at', 'login_count', 'nome', 'picture']))
@@ -54,20 +64,20 @@ service cloud.firestore {
 
     // ── Dati della scuola (raggruppati in "contenitori") ──
     match /allievi/{shard} {
-      allow read: if approved();
+      allow read: if seesStudents();
       allow write: if approved() && !isMaestro()
                    && (canEdit('iscrizioni') || canEdit('corsi') || canEdit('backup') || canEdit('ritardi'));
     }
     match /pagamenti/{shard} {
-      allow read: if approved();
+      allow read: if seesStudents();
       allow write: if canEdit('iscrizioni') || canEdit('corsi') || canEdit('backup');
     }
     match /corsi/{shard} {
-      allow read: if approved();
+      allow read: if seesStudents() || canView('calendario');
       allow write: if approved() && !isMaestro() && (canEdit('corsi') || canEdit('backup'));
     }
     match /eventi/{shard} {
-      allow read: if approved();
+      allow read: if canView('calendario') || canView('home');
       allow write: if canEdit('calendario') || isAdmin();
     }
     // Dati economici e configurazione avanzata: solo amministratore
