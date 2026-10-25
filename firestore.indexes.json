@@ -1,0 +1,16 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "allievi", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "pagamenti", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "corsi", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "eventi", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "uscite", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "maestri", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "spese_ricorrenti", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "documenti_data", "fieldPath": "data_url", "indexes": [] },
+    { "collectionGroup": "config", "fieldPath": "logo_data_url", "indexes": [] },
+    { "collectionGroup": "config", "fieldPath": "orario_data_url", "indexes": [] },
+    { "collectionGroup": "parti", "fieldPath": "b64", "indexes": [] }
+  ]
+}

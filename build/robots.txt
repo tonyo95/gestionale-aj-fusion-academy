@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+# Il gestionale non deve comparire su Google: ogni pagina risponde con "noindex"

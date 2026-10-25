@@ -1,0 +1,90 @@
+rules_version = '2';
+
+// Regole di sicurezza del gestionale AJ Fusion Academy.
+// Nessuno può leggere o scrivere senza login e senza approvazione dell'amministratore.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userPath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(userPath()); }
+    function me() { return get(userPath()).data; }
+    function approved() { return hasProfile() && me().get('status', 'approved') == 'approved'; }
+    function isAdmin() { return approved() && me().role == 'admin'; }
+    function isMaestro() { return me().role == 'maestro'; }
+    function isAdminEmail() {
+      return signedIn() && request.auth.token.email in ['antoniobracciavento@gmail.com', 'ajfusionacademy@gmail.com']
+        && request.auth.token.email_verified == true;
+    }
+
+    // Livello di permesso per sezione: 'none' | 'view' | 'edit' (come nel vecchio gestionale)
+    function level(section) {
+      let u = me();
+      let p = u.get('permissions', null);
+      let v = (p is map && p.size() > 0) ? p.get(section, 'none') : null;
+      return u.role == 'admin' ? 'edit'
+        : (p is map && p.size() > 0)
+          ? (v == true ? 'edit' : ((v == 'view' || v == 'edit') ? v : 'none'))
+          : ((u.role in ['segretaria', 'maestro']
+              && section in ['home', 'corsi', 'iscrizioni', 'ritardi', 'calendario']) ? 'edit' : 'none');
+    }
+    function canEdit(section) { return approved() && level(section) == 'edit'; }
+
+    // ── Utenti ──
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if (signedIn() && request.auth.uid == uid
+                        && request.resource.data.status == 'pending'
+                        && request.resource.data.role == 'segretaria'
+                        && request.resource.data.permissions == null)
+                    || (signedIn() && request.auth.uid == uid && isAdminEmail()
+                        && request.resource.data.role == 'admin')
+                    || isAdmin();
+      allow update: if isAdmin()
+                    || (signedIn() && request.auth.uid == uid
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['last_login_at', 'login_count', 'nome', 'picture']))
+                    || (signedIn() && request.auth.uid == uid && isAdminEmail());
+      allow delete: if isAdmin() && request.auth.uid != uid;
+    }
+    match /login_logs/{id} {
+      allow create: if approved() && request.resource.data.user_id == request.auth.uid;
+      allow read: if isAdmin();
+    }
+
+    // ── Dati della scuola (raggruppati in "contenitori") ──
+    match /allievi/{shard} {
+      allow read: if approved();
+      allow write: if approved() && !isMaestro()
+                   && (canEdit('iscrizioni') || canEdit('corsi') || canEdit('backup') || canEdit('ritardi'));
+    }
+    match /pagamenti/{shard} {
+      allow read: if approved();
+      allow write: if canEdit('iscrizioni') || canEdit('corsi') || canEdit('backup');
+    }
+    match /corsi/{shard} {
+      allow read: if approved();
+      allow write: if approved() && !isMaestro() && (canEdit('corsi') || canEdit('backup'));
+    }
+    match /eventi/{shard} {
+      allow read: if approved();
+      allow write: if canEdit('calendario') || isAdmin();
+    }
+    // Dati economici e configurazione avanzata: solo amministratore
+    match /uscite/{shard} { allow read, write: if isAdmin(); }
+    match /maestri/{shard} { allow read, write: if isAdmin(); }
+    match /spese_ricorrenti/{shard} { allow read, write: if isAdmin(); }
+    match /backups/{id} {
+      allow read, write: if isAdmin();
+      match /parti/{n} { allow read, write: if isAdmin(); }
+    }
+
+    // ── Impostazioni e archivio documenti ──
+    match /config/cron { allow read, write: if isAdmin(); }
+    match /config/{docId} {
+      allow read, write: if approved() && docId != 'cron';
+    }
+    match /documenti/{id} { allow read, write: if approved(); }
+    match /documenti_data/{id} { allow read, write: if approved(); }
+  }
+}
