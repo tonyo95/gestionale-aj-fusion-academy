@@ -10,8 +10,8 @@ service cloud.firestore {
     function hasProfile() { return signedIn() && exists(userPath()); }
     function me() { return get(userPath()).data; }
     function approved() { return hasProfile() && me().get('status', 'approved') == 'approved'; }
-    function ownerEmail(e) { return e in ['antoniobracciavento@gmail.com', 'ajfusionacademy@gmail.com']; }
-    // Amministratore = solo le due email del titolare (anche se qualcuno modificasse il proprio profilo)
+    function ownerEmail(e) { return e in ['antoniobracciavento@gmail.com']; }
+    // Amministratore = solo l'email del titolare (anche se qualcuno modificasse il proprio profilo)
     function isAdmin() {
       return approved() && me().role == 'admin'
         && ownerEmail(request.auth.token.email) && request.auth.token.email_verified == true;
@@ -27,7 +27,7 @@ service cloud.firestore {
       let u = me();
       let p = u.get('permissions', null);
       let v = (p is map && p.size() > 0) ? p.get(section, 'none') : null;
-      return u.role == 'admin' ? 'edit'
+      return u.role == 'admin' ? (ownerEmail(request.auth.token.email) ? 'edit' : 'none')
         : (p is map && p.size() > 0)
           ? (v == true ? 'edit' : ((v == 'view' || v == 'edit') ? v : 'none'))
           : ((u.role in ['segretaria', 'maestro']
